@@ -40,6 +40,51 @@ kubectl wait --for=condition=ready pod -l app=airflow-webserver -n airflow --tim
 echo "9. Развертывание Airflow Scheduler..."
 kubectl apply -f 07-scheduler.yaml
 
+# 8. Копирование DAGs в PVC
+echo "10. Копирование DAGs в PVC..."
+
+# Создание временного пода для копирования DAGs
+echo "10.1. Создание временного пода для копирования..."
+kubectl apply -f 08-dags-pvc.yaml
+
+# Ожидание готовности инициализирующего пода
+echo "10.2. Ожидание готовности инициализирующего пода..."
+if kubectl wait --for=condition=ready pod/dags-initializer -n airflow --timeout=60s; then
+    # Копирование DAGs
+    echo "10.3. Копирование DAGs из локальной папки..."
+    if [ -d "../airflow/dags" ]; then
+        echo "Найдена папка ../airflow/dags"
+        kubectl cp ../airflow/dags/. airflow/dags-initializer:/opt/airflow/dags/ -c dags-copier
+        echo "DAGs скопированы успешно!"
+    elif [ -d "../airflow" ]; then
+        echo "Найдена папка ../airflow, но нет подпапки dags"
+        echo "Создаю пустую структуру..."
+        kubectl exec dags-initializer -n airflow -c dags-copier -- mkdir -p /opt/airflow/dags
+        echo "Скопируйте DAGs вручную или создайте их в папке ../airflow/dags"
+    else
+        echo "Папка ../airflow не найдена."
+        echo "Создаю пустую структуру для DAGs..."
+        kubectl exec dags-initializer -n airflow -c dags-copier -- mkdir -p /opt/airflow/dags
+        echo "Скопируйте DAGs вручную командой:"
+        echo "kubectl cp /path/to/your/dags/. airflow/dags-initializer:/opt/airflow/dags/ -c dags-copier"
+    fi
+    
+    # Проверка содержимого
+    echo "10.4. Проверка содержимого DAGs..."
+    kubectl exec dags-initializer -n airflow -c dags-copier -- ls -la /opt/airflow/dags/
+    
+    # Удаление инициализирующего пода
+    echo "10.5. Удаление инициализирующего пода..."
+    kubectl delete pod dags-initializer -n airflow
+    
+    # Перезапуск подов для подхвата новых DAGs
+    echo "10.6. Перезапуск подов для подхвата новых DAGs..."
+    kubectl rollout restart deployment/airflow-webserver -n airflow
+    kubectl rollout restart deployment/airflow-scheduler -n airflow
+else
+    echo "Не удалось создать под для копирования DAGs. Пропускаю этот шаг."
+fi
+
 echo "=== Развертывание завершено ==="
 echo ""
 echo "Проверка статуса подов:"

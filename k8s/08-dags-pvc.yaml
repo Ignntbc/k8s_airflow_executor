@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dags-initializer
+  namespace: airflow
+spec:
+  restartPolicy: Never
+  containers:
+  - name: dags-copier
+    image: busybox:latest
+    command: ['sh', '-c']
+    args:
+    - |
+      echo "Создание структуры папок..."
+      mkdir -p /opt/airflow/dags
+      echo "Готов для копирования DAGs!"
+      echo "Используйте kubectl cp для копирования DAGs:"
+      echo "kubectl cp ./airflow/dags/. airflow/dags-initializer:/opt/airflow/dags/ -c dags-copier"
+      sleep 300
+    volumeMounts:
+    - name: dags-volume
+      mountPath: /opt/airflow/dags
+  volumes:
+  - name: dags-volume
+    persistentVolumeClaim:
+      claimName: airflow-dags-pvc
