@@ -6,3 +6,36 @@
 chmod +x ./kind
 sudo mv ./kind /usr/local/bin/kind
 
+
+# Создание кластера
+kind create cluster --image kindest/node:v1.30.13
+
+# При возникновении ошибки ERROR: failed to create cluster: failed to get docker info:  нужно добавить юзера в группу docker командой sudo usermod -aG docker $USER (изменения вступят в силу после ребута)
+
+# Проверка кластера 
+kubectl cluster-info --context kind-kind 
+
+# При первом использовании была ошибка с контекстом, исправлял явным указанием конфига:
+
+# export KUBECONFIG=~/.kube/config
+# kubectl config get-contexts
+
+# Добавление репозитория эира для helm
+helm repo add apache-airflow https://airflow.apache.org
+helm repo update
+
+# Создание namespace
+export NAMESPACE=airflow
+kubectl create namespace $NAMESPACE
+
+# Устанавка Helm chart apache-airflow/airflow с указанным релизом и тестовыми дагами
+export RELEASE_NAME=air-release
+
+helm install $RELEASE_NAME apache-airflow/airflow \
+  --namespace $NAMESPACE \
+  --set-string "env[0].name=AIRFLOW__CORE__LOAD_EXAMPLES" \
+  --set-string "env[0].value=True"
+
+# Проброс портов наружу
+
+kubectl port-forward svc/$RELEASE_NAME-api-server 8080:8080 --namespace $NAMESPACE
