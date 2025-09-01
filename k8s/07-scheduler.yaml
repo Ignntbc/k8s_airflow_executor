@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler
+  namespace: airflow
+  labels:
+    app: airflow-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-scheduler
+  template:
+    metadata:
+      labels:
+        app: airflow-scheduler
+    spec:
+      serviceAccountName: airflow
+      initContainers:
+      - name: wait-for-webserver
+        image: curlimages/curl:latest
+        command: ['sh', '-c']
+        args:
+        - |
+          until curl -f http://airflow-webserver:8080/health; do
+            echo "Waiting for webserver to be ready..."
+            sleep 5
+          done
+      containers:
+      - name: airflow-scheduler
+        image: apache/airflow:2.10.2-python3.9
+        command: ['airflow', 'scheduler']
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+        - name: AIRFLOW__CORE__EXECUTOR
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__CORE__EXECUTOR
+        - name: AIRFLOW__API__SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secrets
+              key: secret_key
+        - name: AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_REPOSITORY
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_REPOSITORY
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_TAG
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_TAG
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_SUCCESS
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_SUCCESS
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_FAILURE
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_FAILURE
+        volumeMounts:
+        - name: airflow-dags
+          mountPath: /opt/airflow/dags
+        - name: airflow-logs
+          mountPath: /opt/airflow/logs
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/bash
+            - -c
+            - "airflow jobs check --job-type SchedulerJob --local"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 20
+      volumes:
+      - name: airflow-dags
+        persistentVolumeClaim:
+          claimName: airflow-dags-pvc
+      - name: airflow-logs
+        persistentVolumeClaim:
+          claimName: airflow-logs-pvc

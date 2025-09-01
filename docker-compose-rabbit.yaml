@@ -1,0 +1,75 @@
+name: "rabbit-cluster"
+services:
+    rabbitmq-master:
+        build:
+            context: .\dockers\
+            dockerfile: Dockerfile.rabbitmq
+        container_name: rabbitmq-master
+        hostname: rabbitmq-master
+        environment:
+            - RABBITMQ_NODENAME=rabbit@${RABBITMQ_MASTER_NODENAME}
+            - RABBITMQ_ERLANG_COOKIE=${RABBITMQ_ERLANG_COOKIE}
+            - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+            - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+            - TZ=UTC
+        ports:
+            - "5671:5671"
+            - "5672:5672"
+            - "15672:15672"
+            - "4369:4369"
+            - "25672:25672"
+            
+
+        volumes:
+            - ${SETUP_DIR}/master/.data:/var/lib/rabbitmq
+            - ${SETUP_DIR}/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+            - ${SETUP_DIR}/certs:/certs
+        networks:
+            - airflow-net
+        healthcheck:
+            test: ["CMD", "rabbitmqctl", "status"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+
+    rabbitmq-slave:
+        build:
+            context: .\dockers\
+            dockerfile: Dockerfile.rabbitmq
+        container_name: rabbitmq-slave
+        hostname: rabbitmq-slave
+        environment:
+            - RABBITMQ_NODENAME=rabbit@${RABBITMQ_SLAVE_NODENAME}
+            - RABBITMQ_ERLANG_COOKIE=${RABBITMQ_ERLANG_COOKIE}
+            - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+            - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+            - TZ=UTC
+        ports:
+            - "5673:5672"
+            - "15673:15672"
+            - "4368:4369"
+            - "25673:25672"
+            - "5674:5671"
+
+        volumes:
+            - ${SETUP_DIR}/slave/.data:/var/lib/rabbitmq
+            - ${SETUP_DIR}/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+            - ${SETUP_DIR}/certs:/certs
+        networks:
+            - airflow-net
+        # deploy:
+        #     resources:
+        #         limits:
+        #             cpus: '0.1'
+        #             memory: 128M
+        depends_on:
+            rabbitmq-master:
+                condition: service_healthy
+    
+        
+
+networks:
+    airflow-net:
+        driver: bridge
+        external: true

@@ -1,0 +1,220 @@
+name: "Airflow-webserver_scheduler"
+x-common-config:
+    &common-config
+    networks:
+        - airflow-net
+    volumes:
+        - ${SETUP_DIR}/airflow:/opt/airflow
+        - D:\keystore\webserver_2scheduler_2worker_2rabbit\certs:/certs
+        
+x-build-args: &common-build-args
+    args: 
+        - PYTHON_VERSION=${PYTHON_VERSION}
+        - APACHE_AIRFLOW_VERSION=${APACHE_AIRFLOW_VERSION}
+        - AIRFLOW__CORE__LOAD_EXAMPLES=${AIRFLOW__CORE__LOAD_EXAMPLES}
+        - AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR}
+        - AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL=${AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL}
+        - AIRFLOW__API__SECRET_KEY=${AIRFLOW__API__SECRET_KEY}
+        - POSTGRES_DB_NAME=${POSTGRES_DB_NAME}
+        - POSTGRES_USER=${POSTGRES_USER}
+        - POSTGRES_USER_PASSWORD=${POSTGRES_USER_PASSWORD}
+        - POSTGRES_POSTGRES_PASSWORD=${POSTGRES_POSTGRES_PASSWORD}
+        - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
+        # - AIRFLOW__CELERY__BROKER_TRANSPORT_OPTIONS=${AIRFLOW__CELERY__BROKER_TRANSPORT_OPTIONS}
+        - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=${AIRFLOW__WEBSERVER__EXPOSE_CONFIG}
+        - AIRFLOW__OPERATORS__DEFAULT_QUEUE=${AIRFLOW__OPERATORS__DEFAULT_QUEUE}
+        - AIRFLOW__CELERY__EXTRA_CELERY_CONFIG=${AIRFLOW__CELERY__EXTRA_CELERY_CONFIG}
+        - AIRFLOW__LOGGING__CELERY_LOGGING_LEVEL=${AIRFLOW__LOGGING__CELERY_LOGGING_LEVEL}
+        - AIRFLOW__LOGGING__LOGGING_LEVEL=${AIRFLOW__LOGGING__LOGGING_LEVEL}
+        - AIRFLOW__CELERY__TASK_PUBLISH_MAX_RETRIES=${AIRFLOW__CELERY__TASK_PUBLISH_MAX_RETRIES}
+        - AIRFLOW__CELERY__BROKER_CONNECTION_TIMEOUT=${AIRFLOW__CELERY__BROKER_CONNECTION_TIMEOUT}
+        - AIRFLOW__CELERY__OPERATION_TIMEOUT=$AIRFLOW__CELERY__OPERATION_TIMEOUT
+# - AIRFLOW__CELERY__SSL_ACTIVE=${AIRFLOW__CELERY__SSL_ACTIVE}
+# - AIRFLOW__CELERY__SSL_KEY=${AIRFLOW__CELERY__SSL_KEY}
+# - AIRFLOW__CELERY__SSL_CERT=${AIRFLOW__CELERY__SSL_CERT}
+# - AIRFLOW__CELERY__SSL_CACERT=${AIRFLOW__CELERY__SSL_CACERT}
+
+
+services:
+    postgresql:
+        container_name: airflow_postgresql
+        << : *common-config
+        build: 
+            context: .\dockers\
+            dockerfile: Dockerfile.postgresql
+            << : *common-build-args
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U airflow"]
+            interval: 5s
+            retries: 5
+            timeout: 5s
+
+    webserver:
+        container_name: airflow_webserver
+        << : *common-config
+        build : 
+            context : .\dockers\
+            dockerfile : Dockerfile.airflow
+            << : *common-build-args
+        depends_on:
+            postgresql:
+                condition: service_healthy
+        ports:
+            - "8080:8080"
+        healthcheck:
+            test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 30s
+        restart: always
+        environment:
+            AIRFLOW__CELERY__OPERATION_TIMEOUT: 1
+
+
+        command:            
+            - bash
+            - -c
+            - |
+                airflow db init
+                airflow users create --username ${WEBSERVER_ADMIN_LOGIN} --password ${WEBSERVER_ADMIN_PASSWORD} --firstname Admin --lastname User --role Admin --email ${WEBSERVER_ADMIN_EMAIL}
+                airflow webserver
+    scheduler1:
+        container_name: airflow_scheduler1
+        << : *common-config
+        build : 
+            context : .\dockers\
+            dockerfile : Dockerfile.airflow
+            << : *common-build-args
+        tty: true
+        stdin_open: true
+        depends_on:
+            postgresql:
+                condition: service_healthy
+            webserver:
+                condition: service_healthy
+        healthcheck:
+            test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 30s
+        restart: always
+        environment:
+            TZ: Europe/Moscow
+            CELERY_TIMEZONE: Europe/Moscow
+            AIRFLOW__CELERY__OPERATION_TIMEOUT: 1
+        command:            
+            - bash
+            - -c
+            - |
+                airflow scheduler
+
+
+    scheduler2:
+        container_name: airflow_scheduler2
+        << : *common-config
+        build : 
+            context : .\dockers\
+            dockerfile : Dockerfile.airflow
+            << : *common-build-args
+        depends_on:
+            postgresql:
+                condition: service_healthy
+            webserver:
+                condition: service_healthy
+        healthcheck:
+            test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
+            start_period: 30s
+        restart: always
+        environment:
+            TZ: Europe/Moscow
+            CELERY_TIMEZONE: Europe/Moscow
+            AIRFLOW__CELERY__OPERATION_TIMEOUT: 1
+        command:            
+            - bash
+            - -c
+            - |
+                airflow scheduler
+
+
+    worker1:
+        container_name: worker1
+        << : *common-config
+        build : 
+            context : .\dockers\
+            dockerfile : Dockerfile.airflow
+            << : *common-build-args
+        depends_on:
+            postgresql:
+                condition: service_healthy
+            webserver:
+                condition: service_healthy
+        # ports:
+        #     - "8793:8793"
+        environment:
+            AIRFLOW__CELERY__OPERATION_TIMEOUT: 1
+            TZ: Europe/Moscow
+            CELERY_TIMEZONE: Europe/Moscow
+        command:            
+            - bash
+            - -c
+            - |
+                airflow celery worker --concurrency 100
+
+                
+                    
+    worker2:
+        container_name: worker2
+        << : *common-config
+        build : 
+            context : .\dockers\
+            dockerfile : Dockerfile.airflow
+            << : *common-build-args
+        depends_on:
+            postgresql:
+                condition: service_healthy
+            webserver:
+                condition: service_healthy
+        ports:
+            - "8794:8793"
+        environment:
+            AIRFLOW__CELERY__OPERATION_TIMEOUT: 1
+            TZ: Europe/Moscow
+            CELERY_TIMEZONE: Europe/Moscow
+        command:            
+            - bash
+            - -c
+            - |
+                airflow celery worker --concurrency 100
+
+
+    flower:
+        container_name: flower
+        << : *common-config
+        build : 
+            context : .\dockers\
+            dockerfile : Dockerfile.airflow
+            << : *common-build-args
+        depends_on:
+            postgresql:
+                condition: service_healthy
+            webserver:
+                condition: service_healthy
+        ports:
+            - "5555:5555"
+        command:            
+            - bash
+            - -c
+            - |
+                airflow celery flower
+
+
+
+networks:
+    airflow-net:
+        driver: bridge
+        external: true

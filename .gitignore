@@ -1,0 +1,25 @@
+# Environment files
+.env
+*.env
+
+# Docker volumes and data
+*/.data/
+*/data/
+logs/
+airflow/logs/
+
+# SSL certificates (если не нужны в репозитории)
+certs/*.pem
+certs/*.key
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log

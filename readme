@@ -39,3 +39,34 @@ helm install $RELEASE_NAME apache-airflow/airflow \
 # Проброс портов наружу
 
 kubectl port-forward svc/$RELEASE_NAME-api-server 8080:8080 --namespace $NAMESPACE
+
+# ===== KUBERNETES DEPLOYMENT =====
+# Развертывание с собственными Docker образами и KubernetesExecutor
+
+# Переход в директорию с манифестами
+cd k8s
+
+# Быстрое развертывание
+chmod +x deploy.sh
+./deploy.sh
+
+# Или ручное развертывание по шагам:
+# kubectl apply -f 01-namespace.yaml
+# kubectl apply -f 02-configmap.yaml  
+# kubectl apply -f 03-secrets.yaml
+# kubectl apply -f 04-postgres.yaml
+# kubectl apply -f 05-rbac.yaml
+# kubectl wait --for=condition=ready pod -l app=postgres -n airflow --timeout=300s
+# kubectl apply -f 06-webserver.yaml
+# kubectl apply -f 07-scheduler.yaml
+
+# Проверка статуса
+kubectl get pods -n airflow
+
+# Доступ к UI через port-forward
+kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow
+
+# Логин: admin, Пароль: admin
+
+# Удаление
+# ./cleanup.sh

@@ -1,0 +1,26 @@
+FROM registry.astralinux.ru/library/astra/ubi18:latest
+
+ARG POSTGRES_POSTGRES_PASSWORD
+ARG POSTGRES_DB_NAME
+ARG POSTGRES_USER
+ARG POSTGRES_USER_PASSWORD
+
+RUN apt update
+RUN apt install postgresql -y
+
+ENV POSTGRES_USER=$POSTGRES_USER
+ENV POSTGRES_PASSWORD=$POSTGRES_USER_PASSWORD
+ENV POSTGRES_DB=$POSTGRES_DB_NAME
+
+USER postgres
+RUN /etc/init.d/postgresql start \
+    && psql --command "ALTER USER postgres WITH ENCRYPTED PASSWORD '$POSTGRES_POSTGRES_PASSWORD';" \
+    && psql --command "CREATE DATABASE $POSTGRES_DB_NAME;" \
+    && psql --command "CREATE USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_USER_PASSWORD';" \
+    && psql --command "GRANT ALL PRIVILEGES ON DATABASE $POSTGRES_DB_NAME TO $POSTGRES_USER;" \
+    && psql --command "ALTER DATABASE $POSTGRES_DB_NAME OWNER TO $POSTGRES_USER;"
+
+EXPOSE 5432
+CMD [ "/usr/lib/postgresql/15/bin/postgres", "-D", "/var/lib/postgresql/15/main", "-c", "config_file=/etc/postgresql/15/main/postgresql.conf" ]
+
+
