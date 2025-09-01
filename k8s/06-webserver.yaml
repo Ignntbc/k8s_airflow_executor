@@ -5,7 +5,8 @@ metadata:
   namespace: airflow
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
+  storageClassName: local-path
   resources:
     requests:
       storage: 5Gi
@@ -17,7 +18,8 @@ metadata:
   namespace: airflow
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
+  storageClassName: local-path
   resources:
     requests:
       storage: 10Gi
@@ -40,6 +42,17 @@ spec:
         app: airflow-webserver
     spec:
       serviceAccountName: airflow
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["airflow-scheduler"]
+              topologyKey: kubernetes.io/hostname
       initContainers:
       - name: wait-for-postgres
         image: postgres:15
