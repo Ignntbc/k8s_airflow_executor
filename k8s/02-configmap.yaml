@@ -4,15 +4,15 @@ metadata:
   name: airflow-config
   namespace: airflow
 data:
-  # Airflow Configuration
+  # Конфигурация Airflow
   AIRFLOW__CORE__EXECUTOR: "KubernetesExecutor"
   AIRFLOW__CORE__LOAD_EXAMPLES: "False"
   AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
   AIRFLOW__OPERATORS__DEFAULT_QUEUE: "default"
   AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "5"
   AIRFLOW__LOGGING__LOGGING_LEVEL: "INFO"
-  
-  # Kubernetes Executor Configuration
+
+  # Конфигурация Kubernetes Executor
   AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE: "airflow"
   AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_REPOSITORY: "apache/airflow"
   AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_TAG: "2.10.2-python3.9"
@@ -24,10 +24,19 @@ data:
   POSTGRES_DB: "airflow"
   POSTGRES_USER: "airflow"
   
-  # Python and Airflow versions
+  # Версии Python и Airflow
   PYTHON_VERSION: "3.11"
   APACHE_AIRFLOW_VERSION: "2.10.2"
-  
+
   # Webserver admin
   WEBSERVER_ADMIN_LOGIN: "admin"
   WEBSERVER_ADMIN_EMAIL: "admin@example.com"
+
+  # Уровень логирования
+  AIRFLOW__LOGGING__LOGGING_LEVEL: "INFO"
+  AIRFLOW__CORE__LOGGING_LEVEL: "INFO"
+  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE: "1"
+  
+  # Настройки для worker подов
+  AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_CONFIGMAP_REF: "airflow-config"
+  AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_SECRET_REF: "airflow-secrets"
