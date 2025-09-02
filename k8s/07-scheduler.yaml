@@ -110,24 +110,18 @@ spec:
             configMapKeyRef:
               name: airflow-config
               key: AIRFLOW__CORE__LOGGING_LEVEL
-
-        - name: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
-          valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
-
-        - name: AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_CONFIGMAP_REF
-          valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_CONFIGMAP_REF
               
-        - name: AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_SECRET_REF
-          valueFrom:
-            configMapKeyRef:
-              name: airflow-config
-              key: AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_SECRET_REF
+        # Специальные настройки для передачи конфигурации в worker поды
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_PENDING_TIMEOUT
+          value: "300"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_PENDING_TIMEOUT_CHECK_INTERVAL
+          value: "120"
+          
+        envFrom:
+        - configMapRef:
+            name: airflow-config
+        - secretRef:
+            name: airflow-secrets
 
 
         volumeMounts:

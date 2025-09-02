@@ -32,13 +32,23 @@ data:
   WEBSERVER_ADMIN_LOGIN: "admin"
   WEBSERVER_ADMIN_EMAIL: "admin@example.com"
 
-  # Уровень логирования
+  # Уровень логирования - добавляем недостающие переменные
   AIRFLOW__LOGGING__LOGGING_LEVEL: "INFO"
   AIRFLOW__CORE__LOGGING_LEVEL: "INFO"
+  AIRFLOW__LOGGING__CELERY_LOGGING_LEVEL: "INFO"
+  AIRFLOW__LOGGING__FAB_LOGGING_LEVEL: "WARN"
+  AIRFLOW__LOGGING__FLASK_APPBUILDER_LOGGING_LEVEL: "WARN"
+  AIRFLOW__LOGGING__PROCESSOR_LOG_LEVEL: "INFO"
   AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE: "1"
   AIRFLOW__LOGGING__BASE_LOG_FOLDER: "/opt/airflow/logs"
   AIRFLOW__LOGGING__DAG_PROCESSOR_MANAGER_LOG_LOCATION: "/opt/airflow/logs/dag_processor_manager/dag_processor_manager.log"
   AIRFLOW__LOGGING__COLORED_CONSOLE_LOG: "False"
+  AIRFLOW__LOGGING__REMOTE_LOGGING: "False"
+  
+  # Дополнительные настройки для worker подов
+  AIRFLOW__CORE__DAGS_FOLDER: "/opt/airflow/dags"
+  AIRFLOW__CORE__BASE_LOG_FOLDER: "/opt/airflow/logs"
+  AIRFLOW__CORE__PLUGINS_FOLDER: "/opt/airflow/plugins"
 
   # Настройки для worker подов
   AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_CONFIGMAP_REF: "airflow-config"
