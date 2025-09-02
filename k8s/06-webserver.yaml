@@ -138,6 +138,13 @@ spec:
             configMapKeyRef:
               name: airflow-config
               key: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
+        
+        - name: AIRFLOW__LOGGING__LOGGING_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: airflow-config
+              key: AIRFLOW__LOGGING__LOGGING_LEVEL
+              
         volumeMounts:
         - name: airflow-dags
           mountPath: /opt/airflow/dags
