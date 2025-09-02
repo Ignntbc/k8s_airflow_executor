@@ -116,6 +116,12 @@ spec:
           value: "300"
         - name: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_PENDING_TIMEOUT_CHECK_INTERVAL
           value: "120"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_CONFIGMAP_REF
+          value: "airflow-config"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_SECRET_REF
+          value: "airflow-secrets"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_SERVICE_ACCOUNT_NAME
+          value: "airflow"
           
         envFrom:
         - configMapRef:

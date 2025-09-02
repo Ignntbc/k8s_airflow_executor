@@ -18,20 +18,10 @@ with DAG(
     t1 = BashOperator(
         task_id='echo_hi',
         bash_command='echo "Hello"',
-        executor_config={
-            "KubernetesExecutor": {
-                "image": "igntbc/airflow-custom:2.10.2"
-            }
-        }
     )
     t2 = BashOperator(
         task_id='print_date',
         bash_command='date',
-        executor_config={
-            "KubernetesExecutor": {
-                "image": "igntbc/airflow-custom:2.10.2"
-            }
-        }
     )
 
     t1 >> t2
