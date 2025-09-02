@@ -64,7 +64,7 @@ spec:
               name: airflow-secrets
               key: airflow_password
       - name: airflow-init
-        image: igntbc/airflow-custom:2.10.2 # apache/airflow:2.10.2-python3.9
+        image: apache/airflow:2.10.2-python3.9 # igntbc/airflow-custom:2.10.2
         command: ['bash', '-c']
         args:
         - |
@@ -96,7 +96,7 @@ spec:
           mountPath: /opt/airflow/logs
       containers:
       - name: airflow-webserver
-        image: igntbc/airflow-custom:2.10.2 # apache/airflow:2.10.2-python3.9
+        image: apache/airflow:2.10.2-python3.9 # igntbc/airflow-custom:2.10.2 
         command: ['airflow', 'webserver']
         ports:
         - containerPort: 8080

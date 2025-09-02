@@ -11,7 +11,7 @@ data:
       serviceAccountName: airflow
       containers:
       - name: base
-        image: igntbc/airflow-custom:2.10.2
+        image: apache/airflow:2.10.2-python3.9
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           value: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"

@@ -39,7 +39,7 @@ spec:
           done
       containers:
       - name: airflow-scheduler
-        image:  igntbc/airflow-custom:2.10.2 #apache/airflow:2.10.2-python3.9
+        image:  apache/airflow:2.10.2-python3.9 # igntbc/airflow-custom:2.10.2 
         command: ['airflow', 'scheduler']
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
