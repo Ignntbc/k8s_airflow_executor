@@ -23,13 +23,13 @@ find ./airflow/dags -name "*.py" -exec basename {} \;
 
 # Создание временного пода для копирования (если не существует)
 echo "🔄 Проверка пода dags-initializer..."
-if ! kubectl get pod dags-initializer -n airflow &> /dev/null; then
-    echo "📦 Создание пода dags-initializer..."
-    kubectl apply -f k8s/08-dags-pvc.yaml
-    
-    echo "⏳ Ожидание готовности пода..."
-    kubectl wait --for=condition=ready pod/dags-initializer -n airflow --timeout=60s
-fi
+kubectl delete pod dags-initializer -n airflow --ignore-not-found=true
+
+echo "📦 Создание нового пода dags-initializer..."
+kubectl apply -f k8s/08-dags-pvc.yaml
+
+echo "⏳ Ожидание готовности пода..."
+kubectl wait --for=condition=ready pod/dags-initializer -n airflow --timeout=60s
 
 # Копирование DAG файлов
 echo "📋 Копирование DAG файлов..."

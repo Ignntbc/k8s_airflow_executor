@@ -16,7 +16,8 @@ spec:
       echo "Готов для копирования DAGs!"
       echo "Используйте kubectl cp для копирования DAGs:"
       echo "kubectl cp ./airflow/dags/. airflow/dags-initializer:/opt/airflow/dags/ -c dags-copier"
-      sleep 300
+      echo "Ожидание копирования файлов... (под будет работать 10 минут)"
+      sleep 600
     volumeMounts:
     - name: dags-volume
       mountPath: /opt/airflow/dags
