@@ -40,18 +40,34 @@ kubectl wait --for=condition=ready pod -l app=airflow-webserver -n airflow --tim
 echo "9. Развертывание Airflow Scheduler..."
 kubectl apply -f 07-scheduler.yaml
 
+# 8. Развертывание системы мониторинга
+echo "10. Развертывание Node Exporter..."
+kubectl apply -f 12-node-exporter.yaml
+
+echo "11. Развертывание Prometheus..."
+kubectl apply -f 10-prometheus.yaml
+
+echo "12. Развертывание Grafana..."
+kubectl apply -f 11-grafana.yaml
+kubectl apply -f 13-grafana-advanced-dashboard.yaml
+
+# Ожидание готовности Prometheus и Grafana
+echo "13. Ожидание готовности мониторинга..."
+kubectl wait --for=condition=ready pod -l app=prometheus -n airflow --timeout=300s
+kubectl wait --for=condition=ready pod -l app=grafana -n airflow --timeout=300s
+
 # 8. Копирование DAGs в PVC
-echo "10. Копирование DAGs в PVC..."
+echo "14. Копирование DAGs в PVC..."
 
 # Создание временного пода для копирования DAGs
-echo "10.1. Создание временного пода для копирования..."
+echo "14.1. Создание временного пода для копирования..."
 kubectl apply -f 08-dags-pvc.yaml
 
 # Ожидание готовности инициализирующего пода
-echo "10.2. Ожидание готовности инициализирующего пода..."
+echo "14.2. Ожидание готовности инициализирующего пода..."
 if kubectl wait --for=condition=ready pod/dags-initializer -n airflow --timeout=60s; then
     # Копирование DAGs
-    echo "10.3. Копирование DAGs из локальной папки..."
+    echo "14.3. Копирование DAGs из локальной папки..."
     if [ -d "../airflow/dags" ]; then
         echo "Найдена папка ../airflow/dags"
         kubectl cp ../airflow/dags/. airflow/dags-initializer:/opt/airflow/dags/ -c dags-copier
@@ -70,15 +86,15 @@ if kubectl wait --for=condition=ready pod/dags-initializer -n airflow --timeout=
     fi
     
     # Проверка содержимого
-    echo "10.4. Проверка содержимого DAGs..."
+    echo "14.4. Проверка содержимого DAGs..."
     kubectl exec dags-initializer -n airflow -c dags-copier -- ls -la /opt/airflow/dags/
     
     # Удаление инициализирующего пода
-    echo "10.5. Удаление инициализирующего пода..."
+    echo "14.5. Удаление инициализирующего пода..."
     kubectl delete pod dags-initializer -n airflow
     
     # Перезапуск подов для подхвата новых DAGs
-    echo "10.6. Перезапуск подов для подхвата новых DAGs..."
+    echo "14.6. Перезапуск подов для подхвата новых DAGs..."
     kubectl rollout restart deployment/airflow-webserver -n airflow
     kubectl rollout restart deployment/airflow-scheduler -n airflow
 else
@@ -95,9 +111,21 @@ echo "Получение внешнего IP для доступа к Airflow:"
 kubectl get svc airflow-webserver -n airflow
 
 echo ""
+echo "Получение внешнего IP для доступа к Grafana:"
+kubectl get svc grafana -n airflow
+
+echo ""
 echo "Для доступа к Airflow UI используйте:"
 echo "kubectl port-forward svc/airflow-webserver 8080:8080 -n airflow"
 echo ""
+echo "Для доступа к Grafana используйте:"
+echo "kubectl port-forward svc/grafana 3000:3000 -n airflow"
+echo ""
+echo "Данные для входа в Airflow:"
+echo "Логин: admin"
+echo "Пароль: admin"
+echo ""
+echo "Данные для входа в Grafana:"
 echo "Логин: admin"
 echo "Пароль: admin"
 echo ""

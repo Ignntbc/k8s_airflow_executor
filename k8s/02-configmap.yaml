@@ -61,3 +61,13 @@ data:
 
   # База данных для worker подов
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+  
+  # Настройки метрик для мониторинга
+  AIRFLOW__METRICS__STATSD_ON: "True"
+  AIRFLOW__METRICS__STATSD_HOST: "localhost"
+  AIRFLOW__METRICS__STATSD_PORT: "8125"
+  AIRFLOW__METRICS__STATSD_PREFIX: "airflow"
+  
+  # Настройки для экспорта метрик Prometheus
+  AIRFLOW__WEBSERVER__EXPOSE_HOSTNAME: "True"
+  AIRFLOW__WEBSERVER__EXPOSE_STACKTRACE: "True"

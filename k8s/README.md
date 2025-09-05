@@ -1,6 +1,6 @@
-# Развертывание Airflow в Kubernetes с KubernetesExecutor
+# Развертывание Airflow в Kubernetes с KubernetesExecutor и Мониторингом
 
-Этот проект содержит Kubernetes манифесты для развертывания Apache Airflow с использованием KubernetesExecutor.
+Этот проект содержит Kubernetes манифесты для развертывания Apache Airflow с использованием KubernetesExecutor и полной системы мониторинга на базе Prometheus и Grafana.
 
 ## Архитектура
 
@@ -8,9 +8,13 @@
 - **Airflow Webserver**: 1 под с веб-интерфейсом  
 - **Airflow Scheduler**: 1 под с планировщиком
 - **Workers**: Создаются динамически через KubernetesExecutor
+- **Prometheus**: Сбор метрик с узлов и подов
+- **Grafana**: Визуализация метрик CPU и памяти
+- **Node Exporter**: Сбор метрик с узлов кластера
 
 ## Компоненты
 
+### Основные компоненты
 1. **01-namespace.yaml** - Создание namespace `airflow`
 2. **02-configmap.yaml** - Конфигурация Airflow
 3. **03-secrets.yaml** - Пароли и секретные ключи
@@ -18,6 +22,14 @@
 5. **05-rbac.yaml** - RBAC для KubernetesExecutor
 6. **06-webserver.yaml** - Airflow Webserver
 7. **07-scheduler.yaml** - Airflow Scheduler
+8. **08-dags-pvc.yaml** - PVC для DAGs
+9. **09-worker-pod-template.yaml** - Шаблон для worker подов
+
+### Система мониторинга
+10. **10-prometheus.yaml** - Prometheus для сбора метрик
+11. **11-grafana.yaml** - Grafana с базовым дашбордом
+12. **12-node-exporter.yaml** - Node Exporter для метрик узлов
+13. **13-grafana-advanced-dashboard.yaml** - Продвинутый дашборд для Grafana
 
 ## Быстрое развертывание
 
@@ -58,16 +70,42 @@ kubectl apply -f 07-scheduler.yaml
    kubectl get svc airflow-webserver -n airflow
    ```
 
+## Доступ к Grafana
+
+1. **Port-forward:**
+   ```bash
+   kubectl port-forward svc/grafana 3000:3000 -n airflow
+   ```
+   Затем открыть http://localhost:3000
+
+2. **LoadBalancer (если поддерживается кластером):**
+   ```bash
+   kubectl get svc grafana -n airflow
+   ```
+
 ## Данные для входа
 
+### Airflow
 - **Логин:** admin
 - **Пароль:** admin
+
+### Grafana
+- **Логин:** admin  
+- **Пароль:** admin
+
+## Доступные дашборды в Grafana
+
+1. **Airflow Kubernetes Metrics** - Базовые метрики CPU, памяти, количества подов
+2. **Airflow Advanced Kubernetes Metrics** - Детализированные метрики с разбивкой по подам, сетевая и дисковая активность
 
 ## Проверка статуса
 
 ```bash
-# Статус подов
+# Статус всех подов
 kubectl get pods -n airflow
+
+# Статус сервисов
+kubectl get svc -n airflow
 
 # Логи webserver
 kubectl logs -f deployment/airflow-webserver -n airflow
@@ -77,7 +115,34 @@ kubectl logs -f deployment/airflow-scheduler -n airflow
 
 # Логи PostgreSQL
 kubectl logs -f deployment/postgres -n airflow
+
+# Логи Prometheus
+kubectl logs -f deployment/prometheus -n airflow
+
+# Логи Grafana
+kubectl logs -f deployment/grafana -n airflow
 ```
+
+## Мониторинг метрик
+
+Система мониторинга автоматически собирает следующие метрики:
+
+### Метрики узлов (Node Exporter)
+- Загрузка CPU по узлам
+- Использование памяти по узлам
+- Сетевая активность узлов
+- Дисковая активность узлов
+
+### Метрики контейнеров (cAdvisor через Kubernetes API)
+- Загрузка CPU подов Airflow
+- Использование памяти подов Airflow
+- Сетевая активность подов
+- Дисковая активность подов
+
+### Метрики Airflow
+- Количество активных подов
+- Статус компонентов
+- Производительность веб-сервера
 
 ## Настройки KubernetesExecutor
 
