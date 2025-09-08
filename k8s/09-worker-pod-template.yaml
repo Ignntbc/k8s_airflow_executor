@@ -12,7 +12,7 @@ data:
       restartPolicy: Never
       containers:
       - name: base
-        image: apache/airflow:2.10.2-python3.9
+        image: apache/airflow:slim-2.10.2-python3.9
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           value: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
@@ -25,6 +25,8 @@ data:
         volumeMounts:
         - name: dags-volume
           mountPath: /opt/airflow/dags
+        - name: logs-volume
+          mountPath: /opt/airflow/logs
         envFrom:
         - configMapRef:
             name: airflow-config
@@ -41,3 +43,6 @@ data:
       - name: dags-volume
         persistentVolumeClaim:
           claimName: airflow-dags-pvc
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: airflow-logs-pvc
