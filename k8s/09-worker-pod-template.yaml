@@ -10,9 +10,22 @@ data:
     spec:
       serviceAccountName: airflow
       restartPolicy: Never
+      # Размещать worker pods на тех же узлах что и scheduler для быстрого доступа к образу
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["airflow-scheduler"]
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: base
         image: apache/airflow:slim-2.10.2-python3.9
+        imagePullPolicy: IfNotPresent
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           value: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
