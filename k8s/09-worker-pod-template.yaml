@@ -9,6 +9,7 @@ data:
     kind: Pod
     spec:
       serviceAccountName: airflow
+      restartPolicy: Never
       containers:
       - name: base
         image: apache/airflow:2.10.2-python3.9
@@ -17,30 +18,19 @@ data:
           value: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
         - name: AIRFLOW__CORE__EXECUTOR
           value: "KubernetesExecutor"
-        - name: AIRFLOW__LOGGING__LOGGING_LEVEL
-          value: "INFO"
-        - name: AIRFLOW__CORE__LOGGING_LEVEL
-          value: "INFO"
-        - name: AIRFLOW__LOGGING__BASE_LOG_FOLDER
-          value: "/opt/airflow/logs"
-        - name: AIRFLOW__LOGGING__COLORED_CONSOLE_LOG
-          value: "False"
-        - name: AIRFLOW__LOGGING__REMOTE_LOGGING
-          value: "False"
         - name: AIRFLOW__CORE__DAGS_FOLDER
           value: "/opt/airflow/dags"
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "False"
-        volumeMounts:
-        - name: dags-volume
-          mountPath: /opt/airflow/dags
-        - name: logs-volume  
-          mountPath: /opt/airflow/logs
-      volumes:
-      - name: dags-volume
-        persistentVolumeClaim:
-          claimName: airflow-dags-pvc
-      - name: logs-volume
-        persistentVolumeClaim:
-          claimName: airflow-logs-pvc
-      restartPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: airflow-config
+        - secretRef:
+            name: airflow-secrets
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
