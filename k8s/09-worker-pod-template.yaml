@@ -22,6 +22,9 @@ data:
           value: "/opt/airflow/dags"
         - name: AIRFLOW__CORE__LOAD_EXAMPLES
           value: "False"
+        volumeMounts:
+        - name: dags-volume
+          mountPath: /opt/airflow/dags
         envFrom:
         - configMapRef:
             name: airflow-config
@@ -34,3 +37,7 @@ data:
           limits:
             memory: "512Mi"
             cpu: "500m"
+      volumes:
+      - name: dags-volume
+        persistentVolumeClaim:
+          claimName: airflow-dags-pvc
