@@ -120,8 +120,6 @@ spec:
           value: "300"
         - name: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_PENDING_TIMEOUT_CHECK_INTERVAL
           value: "120"
-        - name: AIRFLOW__KUBERNETES_EXECUTOR__POD_TEMPLATE_FILE
-          value: "/opt/airflow/pod_template.yaml"
         - name: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_SERVICE_ACCOUNT_NAME
           value: "airflow"
           
@@ -137,9 +135,6 @@ spec:
           mountPath: /opt/airflow/dags
         - name: airflow-logs
           mountPath: /opt/airflow/logs
-        - name: pod-template
-          mountPath: /opt/airflow/pod_template.yaml
-          subPath: pod_template.yaml
         resources:
           requests:
             memory: "1Gi"
@@ -163,6 +158,3 @@ spec:
       - name: airflow-logs
         persistentVolumeClaim:
           claimName: airflow-logs-pvc
-      - name: pod-template
-        configMap:
-          name: worker-pod-template

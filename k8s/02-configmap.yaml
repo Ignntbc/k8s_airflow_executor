@@ -20,6 +20,12 @@ data:
   AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_SUCCESS: "True"
   AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_FAILURE: "False"
   
+  # Базовые настройки для worker pods (заменяют pod template)
+  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_SERVICE_ACCOUNT_NAME: "airflow"
+  AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_CONFIGMAP_REF: "airflow-config"
+  AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_SECRET_REF: "airflow-secrets"
+  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE: "1"
+  
   # Database Configuration  
   POSTGRES_DB: "airflow"
   POSTGRES_USER: "airflow"
@@ -49,15 +55,6 @@ data:
   AIRFLOW__CORE__DAGS_FOLDER: "/opt/airflow/dags"
   AIRFLOW__CORE__BASE_LOG_FOLDER: "/opt/airflow/logs"
   AIRFLOW__CORE__PLUGINS_FOLDER: "/opt/airflow/plugins"
-
-  # Настройки для worker подов
-  AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_CONFIGMAP_REF: "airflow-config"
-  AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_SECRET_REF: "airflow-secrets"
-  
-  # Дополнительные настройки для принудительной передачи в worker поды
-  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE: "1"
-  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_SERVICE_ACCOUNT_NAME: "airflow"
-  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_ANNOTATION_NAMESPACE: "airflow"
 
   # База данных для worker подов
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
