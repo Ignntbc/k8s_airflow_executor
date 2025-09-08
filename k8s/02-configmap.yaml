@@ -26,6 +26,9 @@ data:
   AIRFLOW__KUBERNETES_EXECUTOR__ENV_FROM_SECRET_REF: "airflow-secrets"
   AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE: "1"
   
+  # Дополнительные переменные для корректной работы worker pods
+  AIRFLOW__CORE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+  
   # Database Configuration  
   POSTGRES_DB: "airflow"
   POSTGRES_USER: "airflow"
@@ -56,8 +59,11 @@ data:
   AIRFLOW__CORE__BASE_LOG_FOLDER: "/opt/airflow/logs"
   AIRFLOW__CORE__PLUGINS_FOLDER: "/opt/airflow/plugins"
 
-  # База данных для worker подов
+  # База данных для worker подов - КРИТИЧЕСКИ ВАЖНО для подключения к PostgreSQL
   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: "postgresql+psycopg2://airflow:airflow@postgres:5432/airflow"
+  AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED: "True"
+  AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE: "5"
+  AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW: "10"
   
   # Настройки метрик для мониторинга
   AIRFLOW__METRICS__STATSD_ON: "True"
