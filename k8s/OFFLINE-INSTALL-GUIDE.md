@@ -143,8 +143,8 @@ postgres:15
 grafana/grafana:10.0.0
 prom/prometheus:v2.45.0
 prom/node-exporter:v1.6.0
-k8s.gcr.io/volume-nfs:0.8
-k8s.gcr.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+registry.k8s.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+quay.io/external_storage/nfs-client-provisioner:latest
 bitnami/kubectl:latest
 curlimages/curl:latest
 busybox:latest
@@ -153,10 +153,35 @@ EOF
 # Скачиваем образы Airflow
 while read image; do
     echo "Скачиваем образ: $image"
-    docker pull $image
-    image_name=$(echo $image | sed 's/[\/:]/-/g')
-    docker save $image > ${image_name}.tar
+    if docker pull $image; then
+        image_name=$(echo $image | sed 's/[\/:]/-/g')
+        docker save $image > ${image_name}.tar
+        echo "✅ Образ $image успешно сохранен"
+    else
+        echo "❌ Ошибка скачивания образа: $image"
+        echo "Попробуйте найти альтернативный образ или пропустите этот"
+    fi
 done < airflow-images-list.txt
+
+# Дополнительные образы для NFS (если основные не работают)
+echo "Скачивание дополнительных NFS образов..."
+NFS_ALTERNATIVES=(
+    "itsthenetwork/nfs-server-alpine:latest"
+    "k8s.gcr.io/volume-nfs:0.8"
+    "gcr.io/google_containers/volume-nfs:0.8"
+)
+
+for nfs_image in "${NFS_ALTERNATIVES[@]}"; do
+    echo "Пробуем скачать: $nfs_image"
+    if docker pull $nfs_image 2>/dev/null; then
+        image_name=$(echo $nfs_image | sed 's/[\/:]/-/g')
+        docker save $nfs_image > ${image_name}.tar
+        echo "✅ NFS образ $nfs_image успешно сохранен"
+        break
+    else
+        echo "⚠️ Образ $nfs_image недоступен, пробуем следующий..."
+    fi
+done
 ```
 
 ## 🌐 4. Подготовка сетевых компонентов
