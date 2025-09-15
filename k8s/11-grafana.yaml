@@ -456,6 +456,8 @@ spec:
       labels:
         app: grafana
     spec:
+      nodeSelector:
+        node-role.kubernetes.io/airflow: management
       securityContext:
         fsGroup: 472
         supplementalGroups:

@@ -1,0 +1,130 @@
+# Конфигурационный файл для маркировки узлов кластера
+# Применяется для разделения Airflow компонентов по ролям
+
+# ВАЖНО: Перед применением этого файла необходимо заменить <node-name> на реальные имена узлов
+# Для получения списка узлов выполните: kubectl get nodes
+
+# Команды для маркировки узлов (выполнить вручную):
+# kubectl label nodes <node1-name> node-role.kubernetes.io/airflow=management
+# kubectl label nodes <node2-name> node-role.kubernetes.io/airflow=scheduler-1  
+# kubectl label nodes <node3-name> node-role.kubernetes.io/airflow=scheduler-2
+
+# Альтернативный способ через патчи (замените имена узлов):
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-labeling-script
+  namespace: airflow
+data:
+  label-nodes.sh: |
+    #!/bin/bash
+    
+    echo "Получение списка узлов кластера..."
+    kubectl get nodes
+    
+    echo ""
+    echo "ИНСТРУКЦИЯ ПО МАРКИРОВКЕ УЗЛОВ:"
+    echo "1. Определите 3 узла для разных ролей"
+    echo "2. Выполните следующие команды, заменив <node-name> на реальные имена:"
+    echo ""
+    echo "# Управляющий узел (Webserver, PostgreSQL, Grafana, Prometheus)"
+    echo "kubectl label nodes <management-node-name> node-role.kubernetes.io/airflow=management"
+    echo ""
+    echo "# Первый планировщик"
+    echo "kubectl label nodes <scheduler1-node-name> node-role.kubernetes.io/airflow=scheduler-1"
+    echo ""
+    echo "# Второй планировщик"  
+    echo "kubectl label nodes <scheduler2-node-name> node-role.kubernetes.io/airflow=scheduler-2"
+    echo ""
+    echo "3. Проверьте результат:"
+    echo "kubectl get nodes --show-labels | grep airflow"
+    echo ""
+    echo "ПРИМЕЧАНИЕ: Если у вас меньше 3 узлов, можно использовать один узел для нескольких ролей"
+    echo "Например, для 2-узлового кластера:"
+    echo "kubectl label nodes <node1> node-role.kubernetes.io/airflow=management"
+    echo "kubectl label nodes <node1> node-role.kubernetes.io/airflow=scheduler-1 --overwrite"
+    echo "kubectl label nodes <node2> node-role.kubernetes.io/airflow=scheduler-2"
+
+---
+# Job для выполнения скрипта маркировки (опционально)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: node-labeling-helper
+  namespace: airflow
+spec:
+  template:
+    spec:
+      serviceAccountName: airflow
+      restartPolicy: Never
+      containers:
+      - name: node-labeler
+        image: bitnami/kubectl:latest
+        command: ["/bin/bash"]
+        args:
+        - -c
+        - |
+          echo "=== АВТОМАТИЧЕСКАЯ МАРКИРОВКА УЗЛОВ ==="
+          echo "Получаем список узлов..."
+          NODES=($(kubectl get nodes --no-headers -o custom-columns=":metadata.name"))
+          
+          if [ ${#NODES[@]} -eq 0 ]; then
+            echo "Ошибка: узлы не найдены"
+            exit 1
+          fi
+          
+          echo "Найдено узлов: ${#NODES[@]}"
+          
+          if [ ${#NODES[@]} -ge 3 ]; then
+            echo "Маркируем 3 узла для разных ролей..."
+            kubectl label nodes ${NODES[0]} node-role.kubernetes.io/airflow=management --overwrite || true
+            kubectl label nodes ${NODES[1]} node-role.kubernetes.io/airflow=scheduler-1 --overwrite || true  
+            kubectl label nodes ${NODES[2]} node-role.kubernetes.io/airflow=scheduler-2 --overwrite || true
+          elif [ ${#NODES[@]} -eq 2 ]; then
+            echo "Маркируем 2 узла (первый - management+scheduler-1, второй - scheduler-2)..."
+            kubectl label nodes ${NODES[0]} node-role.kubernetes.io/airflow=management --overwrite || true
+            kubectl label nodes ${NODES[0]} node-role.kubernetes.io/airflow=scheduler-1 --overwrite || true
+            kubectl label nodes ${NODES[1]} node-role.kubernetes.io/airflow=scheduler-2 --overwrite || true
+          else
+            echo "Маркируем единственный узел всеми ролями..."
+            kubectl label nodes ${NODES[0]} node-role.kubernetes.io/airflow=management --overwrite || true
+            kubectl label nodes ${NODES[0]} node-role.kubernetes.io/airflow=scheduler-1 --overwrite || true
+            kubectl label nodes ${NODES[0]} node-role.kubernetes.io/airflow=scheduler-2 --overwrite || true
+          fi
+          
+          echo ""
+          echo "=== РЕЗУЛЬТАТ МАРКИРОВКИ ==="
+          kubectl get nodes --show-labels | grep -E "(NAME|airflow)" || kubectl get nodes --show-labels
+          
+          echo ""
+          echo "=== ПРОВЕРКА МАРКИРОВКИ ==="
+          echo "Management узлы:"
+          kubectl get nodes -l node-role.kubernetes.io/airflow=management
+          echo "Scheduler-1 узлы:"
+          kubectl get nodes -l node-role.kubernetes.io/airflow=scheduler-1  
+          echo "Scheduler-2 узлы:"
+          kubectl get nodes -l node-role.kubernetes.io/airflow=scheduler-2
+      # Требуется ClusterRole для маркировки узлов
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-labeler
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1  
+kind: ClusterRoleBinding
+metadata:
+  name: node-labeler-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-labeler
+subjects:
+- kind: ServiceAccount
+  name: airflow
+  namespace: airflow

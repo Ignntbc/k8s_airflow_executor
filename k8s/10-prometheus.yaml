@@ -95,6 +95,8 @@ spec:
         app: prometheus
     spec:
       serviceAccountName: airflow
+      nodeSelector:
+        node-role.kubernetes.io/airflow: management
       containers:
       - name: prometheus
         image: prom/prometheus:v2.45.0

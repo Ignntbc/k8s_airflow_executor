@@ -5,8 +5,8 @@ metadata:
   namespace: airflow
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: local-path
+    - ReadWriteMany
+  storageClassName: nfs-client
   resources:
     requests:
       storage: 5Gi
@@ -18,8 +18,8 @@ metadata:
   namespace: airflow
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: local-path
+    - ReadWriteMany
+  storageClassName: nfs-client
   resources:
     requests:
       storage: 10Gi
@@ -46,17 +46,8 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: airflow
-      affinity:
-        podAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-          - weight: 100
-            podAffinityTerm:
-              labelSelector:
-                matchExpressions:
-                - key: app
-                  operator: In
-                  values: ["airflow-scheduler"]
-              topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        node-role.kubernetes.io/airflow: management
       initContainers:
       - name: wait-for-postgres
         image: postgres:15
@@ -117,6 +108,9 @@ spec:
             secretKeyRef:
               name: airflow-secrets
               key: secret_key
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: /opt/airflow/dags
+
         - name: AIRFLOW__WEBSERVER__EXPOSE_CONFIG
           valueFrom:
             configMapKeyRef:

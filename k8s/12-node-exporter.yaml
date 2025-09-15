@@ -1,3 +1,8 @@
+# Node Exporter DaemonSet - работает на всех узлах кластера для сбора метрик
+# В новой архитектуре с 3 нодами будет собирать метрики со всех узлов:
+# - management ноды (где Webserver, PostgreSQL, Grafana, Prometheus)
+# - scheduler-1 ноды (где первый планировщик)
+# - scheduler-2 ноды (где второй планировщик)
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:

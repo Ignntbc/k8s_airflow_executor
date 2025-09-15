@@ -10,8 +10,22 @@ data:
     spec:
       serviceAccountName: airflow
       restartPolicy: Never
-      # Размещать worker pods на тех же узлах что и scheduler для быстрого доступа к образу
+      # Размещать worker pods на scheduler нодах с распределением нагрузки
       affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/airflow
+                operator: In
+                values: ["scheduler-1"]
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: node-role.kubernetes.io/airflow
+                operator: In
+                values: ["scheduler-2"]
         podAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 100

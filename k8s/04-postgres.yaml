@@ -27,6 +27,8 @@ spec:
       labels:
         app: postgres
     spec:
+      nodeSelector:
+        node-role.kubernetes.io/airflow: management
       containers:
       - name: postgres
         image: postgres:15

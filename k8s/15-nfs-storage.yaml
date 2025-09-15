@@ -1,0 +1,322 @@
+# NFS Storage Configuration для shared storage между узлами
+# Этот файл создает NFS сервер и StorageClass для совместного использования DAGs и логов
+
+---
+# NFS Server Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-server
+  namespace: airflow
+  labels:
+    app: nfs-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nfs-server
+  template:
+    metadata:
+      labels:
+        app: nfs-server
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/airflow: management
+      containers:
+      - name: nfs-server
+        image: k8s.gcr.io/volume-nfs:0.8
+        ports:
+        - name: nfs
+          containerPort: 2049
+        - name: mountd
+          containerPort: 20048
+        - name: rpcbind
+          containerPort: 111
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: nfs-storage
+          mountPath: /exports
+        env:
+        - name: SHARED_DIRECTORY
+          value: /exports
+      volumes:
+      - name: nfs-storage
+        emptyDir:
+          sizeLimit: 50Gi
+
+---
+# NFS Server Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: nfs-server
+  namespace: airflow
+  labels:
+    app: nfs-server
+spec:
+  ports:
+  - name: nfs
+    port: 2049
+  - name: mountd
+    port: 20048
+  - name: rpcbind
+    port: 111
+  selector:
+    app: nfs-server
+  clusterIP: None
+
+---
+# NFS Storage Class
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-storage
+provisioner: example.com/nfs
+parameters:
+  server: nfs-server.airflow.svc.cluster.local
+  path: /exports
+reclaimPolicy: Retain
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+
+---
+# NFS Client Provisioner (альтернативный вариант с автоматическим provisioning)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-client-provisioner
+  namespace: airflow
+  labels:
+    app: nfs-client-provisioner
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nfs-client-provisioner
+  template:
+    metadata:
+      labels:
+        app: nfs-client-provisioner
+    spec:
+      serviceAccountName: nfs-client-provisioner
+      nodeSelector:
+        node-role.kubernetes.io/airflow: management
+      containers:
+      - name: nfs-client-provisioner
+        image: k8s.gcr.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+        volumeMounts:
+        - name: nfs-client-root
+          mountPath: /persistentvolumes
+        env:
+        - name: PROVISIONER_NAME
+          value: nfs-storage
+        - name: NFS_SERVER
+          value: nfs-server.airflow.svc.cluster.local
+        - name: NFS_PATH
+          value: /exports
+      volumes:
+      - name: nfs-client-root
+        nfs:
+          server: nfs-server.airflow.svc.cluster.local
+          path: /exports
+
+---
+# Service Account для NFS Client Provisioner
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nfs-client-provisioner
+  namespace: airflow
+
+---
+# RBAC для NFS Client Provisioner
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nfs-client-provisioner-runner
+rules:
+- apiGroups: [""]
+  resources: ["persistentvolumes"]
+  verbs: ["get", "list", "watch", "create", "delete"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "update"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "update", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: run-nfs-client-provisioner
+subjects:
+- kind: ServiceAccount
+  name: nfs-client-provisioner
+  namespace: airflow
+roleRef:
+  kind: ClusterRole
+  name: nfs-client-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: airflow
+rules:
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: leader-locking-nfs-client-provisioner
+  namespace: airflow
+subjects:
+- kind: ServiceAccount
+  name: nfs-client-provisioner
+  namespace: airflow
+roleRef:
+  kind: Role
+  name: leader-locking-nfs-client-provisioner
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Альтернативная StorageClass для использования с NFS Client Provisioner
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nfs-client
+provisioner: nfs-storage
+parameters:
+  pathPattern: "${.PVC.namespace}/${.PVC.name}"
+  onDelete: delete
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+
+---
+# Test PVC для проверки NFS Storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: test-nfs-claim
+  namespace: airflow
+spec:
+  storageClassName: nfs-client
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+# Test Pod для проверки NFS Mount
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-nfs-pod
+  namespace: airflow
+spec:
+  containers:
+  - name: test-container
+    image: busybox:latest
+    command: ["/bin/sh"]
+    args:
+    - -c
+    - |
+      echo "Тестирование NFS mount..."
+      echo "Создание тестового файла..."
+      echo "NFS Storage working!" > /mnt/test-file.txt
+      echo "Содержимое директории /mnt:"
+      ls -la /mnt/
+      echo "Содержимое тестового файла:"
+      cat /mnt/test-file.txt
+      echo "Тест завершен. Под будет работать 300 секунд для проверки..."
+      sleep 300
+    volumeMounts:
+    - name: nfs-volume
+      mountPath: /mnt
+  volumes:
+  - name: nfs-volume
+    persistentVolumeClaim:
+      claimName: test-nfs-claim
+  restartPolicy: Never
+
+---
+# Инструкции по использованию
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nfs-storage-instructions
+  namespace: airflow
+data:
+  README.md: |
+    # NFS Storage Setup для Airflow
+
+    ## Описание
+    Этот файл создает NFS сервер внутри кластера и настраивает динамический provisioning 
+    для PVC с типом ReadWriteMany, необходимых для совместного доступа к DAGs и логам.
+
+    ## Компоненты
+    1. **nfs-server** - NFS сервер на management ноде
+    2. **nfs-client-provisioner** - автоматический provisioner для PVC
+    3. **nfs-client StorageClass** - класс хранилища для ReadWriteMany PVC
+    4. **test-nfs-*** - тестовые ресурсы для проверки работы
+
+    ## Применение
+    ```bash
+    kubectl apply -f 15-nfs-storage.yaml
+    ```
+
+    ## Проверка работы
+    ```bash
+    # Проверить статус NFS сервера
+    kubectl get pods -l app=nfs-server -n airflow
+
+    # Проверить статус provisioner
+    kubectl get pods -l app=nfs-client-provisioner -n airflow
+
+    # Проверить тестовый PVC
+    kubectl get pvc test-nfs-claim -n airflow
+
+    # Проверить тестовый под
+    kubectl logs test-nfs-pod -n airflow
+    ```
+
+    ## Использование в PVC
+    ```yaml
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: my-shared-storage
+      namespace: airflow
+    spec:
+      storageClassName: nfs-client
+      accessModes:
+        - ReadWriteMany
+      resources:
+        requests:
+          storage: 10Gi
+    ```
+
+    ## Troubleshooting
+    - Если NFS сервер не запускается, проверьте права privileged в security policy
+    - Если PVC остается в Pending, проверьте logs nfs-client-provisioner
+    - Убедитесь что узел с management меткой доступен
+
+    ## Очистка тестовых ресурсов
+    ```bash
+    kubectl delete pod test-nfs-pod -n airflow
+    kubectl delete pvc test-nfs-claim -n airflow
+    ```
